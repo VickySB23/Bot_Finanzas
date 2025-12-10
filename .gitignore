@@ -1,0 +1,19 @@
+# --- Archivos de Sistema y Entorno ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# --- Base de Datos (Para no compartir tus gastos) ---
+data/*.db
+data/finance.db
+
+# --- Archivos Generados ---
+*.csv
+*.xlsx
+*.log
+
+# --- IDEs ---
+.vscode/
+.idea/

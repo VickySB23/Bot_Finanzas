@@ -1,52 +1,20 @@
-# Bot_Finanzas# 💰 PocketFlow - Bot de Finanzas Personales para Telegram
+# 💰 PocketFlow - Tu Asistente Financiero Personal
 
-**PocketFlow** es la solución más rápida y privada para llevar el control de tus gastos directamente desde tu app de mensajería favorita. Sin suscripciones mensuales, sin compartir datos con bancos, 100% tuyo.
+PocketFlow es un bot de Telegram profesional diseñado para registrar gastos e ingresos a la velocidad de la luz. Sin suscripciones, sin compartir datos con terceros, 100% privado y tuyo.
 
-## ✨ Características
+## ✨ Características Principales
 
-* 🚀 **Registro ultrarrápido:** `/gasto 250 comida` y listo.
-* 📊 **Visualización clara:** Balances y resúmenes semanales con un diseño limpio.
-* 🥧 **Gráficos automáticos:** Visualiza en qué gastas tu dinero con un comando.
-* 🔒 **Privacidad total:** Tus datos viven en tu propio servidor/bot.
-* 💾 **Persistencia:** Base de datos SQLite incluida y fácil de respaldar.
+* 🚀 **Registro Instantáneo:** `/gasto 500 almuerzo` y listo.
+* 📊 **Gráficos en Tiempo Real:** Visualiza tu distribución de gastos sin esperar imágenes pesadas.
+* 📂 **Sistema de Carpetas:** Agrupa tus gastos automáticamente (Comida, Casa, Ocio...).
+* 📥 **Exportable:** Descarga todo tu historial a Excel/CSV con un clic.
+* 🛡️ **Modo Pánico:** Opción de "Borrar Todo" protegida para reiniciar tu cuenta.
+* 🗑️ **Corrección de Errores:** ¿Te equivocaste? Botón de deshacer inmediato.
 
-## 🛠️ Instalación Rápida
+## 🛠️ Instalación (En 3 Pasos)
 
-### Prerrequisitos
-* Python 3.9 o superior.
-* Un Token de Telegram (consíguelo gratis en @BotFather).
-
-### Pasos
-
-1.  **Clonar el repositorio:**
-    ```bash
-    git clone [https://github.com/tu-usuario/pocketflow-bot.git](https://github.com/tu-usuario/pocketflow-bot.git)
-    cd pocketflow-bot
-    ```
-
-2.  **Crear entorno virtual e instalar dependencias:**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # En Windows: venv\Scripts\activate
-    pip install -r requirements.txt
-    ```
-
-3.  **Configurar:**
-    Copia el archivo de ejemplo y añade tu token.
-    ```bash
-    cp .env.example .env
-    # Edita .env con tu editor favorito y pega tu TELEGRAM_TOKEN
-    ```
-
-4.  **Ejecutar:**
-    ```bash
-    python src/bot.py
-    ```
-
-## 🐳 Docker (Opcional)
-
-Si prefieres usar Docker, simplemente corre:
-
+### 1. Preparar
+Necesitas tener Python instalado. Clona este repositorio y entra en la carpeta:
 ```bash
-docker build -t pocketflow .
-docker run -d --env-file .env pocketflow
+git clone [https://github.com/tu-usuario/pocketflow.git](https://github.com/tu-usuario/pocketflow.git)
+cd pocketflow
