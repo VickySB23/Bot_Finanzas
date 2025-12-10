@@ -18,3 +18,24 @@ Necesitas tener Python instalado. Clona este repositorio y entra en la carpeta:
 ```bash
 git clone [https://github.com/tu-usuario/pocketflow.git](https://github.com/tu-usuario/pocketflow.git)
 cd pocketflow
+
+# En Windows
+python -m venv venv
+venv\Scripts\activate
+
+# En Mac/Linux
+# python3 -m venv venv
+# source venv/bin/activate
+
+# Instalar librerías
+pip install -r requirements.txt
+
+# Copia el archivo de ejemplo (Windows)
+copy .env.example .env
+
+# En Mac/Linux
+# cp .env.example .env
+
+#¡Arrancar!
+python src/bot.py
+
