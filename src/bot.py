@@ -6,14 +6,10 @@ from dotenv import load_dotenv
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from database import Database
-# CAMBIO AQUÍ: Importamos la función de barras en lugar de la de torta
-from utils import generate_bar_chart 
 
 # --- CONFIGURACIÓN ---
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-# TOKEN = os.environ.get("TELEGRAM_TOKEN", "TU_TOKEN_AQUI")
-
 DB_PATH = os.getenv("DB_NAME", "data/finance.db")
 db = Database(DB_PATH)
 
@@ -25,7 +21,9 @@ def get_persistent_menu():
     keyboard = [
         [KeyboardButton("📉 Registrar Gasto"), KeyboardButton("📈 Registrar Ingreso")],
         [KeyboardButton("📊 Ver Balance"), KeyboardButton("📂 Ver Carpetas")], 
-        [KeyboardButton("⚡ Rápido $500"), KeyboardButton("📥 Exportar Excel")]
+        [KeyboardButton("⚡ Rápido $500"), KeyboardButton("📥 Exportar Excel")],
+        # Nueva fila: Ayuda y Borrar Todo
+        [KeyboardButton("ℹ️ Ayuda"), KeyboardButton("⚠️ Borrar Todo")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
@@ -37,17 +35,35 @@ def get_balance_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 def get_back_keyboard():
-    keyboard = [[InlineKeyboardButton("❌ Cerrar", callback_data='delete_msg')]]
+    keyboard = [[InlineKeyboardButton("🔙 Volver", callback_data='delete_msg')]]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_confirm_reset_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("✅ SÍ, BORRAR TODO", callback_data='confirm_reset')],
+        [InlineKeyboardButton("❌ CANCELAR", callback_data='delete_msg')]
+    ]
     return InlineKeyboardMarkup(keyboard)
 
 # --- COMANDOS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user.first_name
     await update.message.reply_text(
-        f"👋 *Hola {user}*\n\n¡Bot reiniciado! Listo para graficar.",
+        f"👋 *Hola {user}*\n\nBot listo con menú de ayuda y reinicio.",
         parse_mode='Markdown', 
         reply_markup=get_persistent_menu()
     )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = (
+        "📚 *GUÍA DE USO*\n\n"
+        "📉 *Gastos:* `/gasto 500 comida`\n"
+        "📈 *Ingresos:* `/ingreso 20000 sueldo`\n"
+        "📂 *Carpetas:* Ver en qué gastas más.\n"
+        "📥 *Excel:* Descarga tu historial.\n"
+        "⚠️ *Borrar Todo:* Reinicia tu cuenta a cero."
+    )
+    await update.message.reply_text(msg, parse_mode='Markdown')
 
 # --- LÓGICA DE TRANSACCIONES ---
 async def add_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -107,10 +123,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             expense = expense or 0
             total = income - expense
             
-            if total >= 0:
-                status_text = f"💚 A Favor: ${total:,.0f}"
-            else:
-                status_text = f"⚠️ Déficit: ${abs(total):,.0f}" 
+            status_text = f"💚 A Favor: ${total:,.0f}" if total >= 0 else f"⚠️ Déficit: ${abs(total):,.0f}"
             
             msg = (
                 f"🏦 *Estado Financiero*\n\n"
@@ -122,12 +135,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(msg, parse_mode='Markdown', reply_markup=get_balance_keyboard())
 
         elif text == "📂 Ver Carpetas":
-            categories = db.get_categories_summary(user_id)
-            if not categories:
+            data = db.get_categories_summary(user_id)
+            if not data:
                 await update.message.reply_text("📭 No tienes carpetas de gastos aún.")
             else:
-                msg = "📂 *Tus Carpetas de Gastos:*\n\n"
-                for cat, amount in categories:
+                # Usamos la lógica de texto directamente aquí
+                msg = "📂 *Desglose por Carpetas:*\n\n"
+                for cat, amount in data:
                     msg += f"📁 *{cat.capitalize()}:* ${amount:,.0f}\n"
                 await update.message.reply_text(msg, parse_mode='Markdown')
 
@@ -138,7 +152,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 chat_id=update.message.chat_id,
                 document=csv_file,
                 filename=f"mis_finanzas.csv",
-                caption="Aquí tienes tus datos para Excel 📊"
+                caption="Aquí tienes tus datos 📊"
+            )
+        
+        elif text == "ℹ️ Ayuda":
+            await help_command(update, context)
+
+        elif text == "⚠️ Borrar Todo":
+            await update.message.reply_text(
+                "🚨 *¿Estás seguro de que quieres borrar TODO?*\n\nSe eliminará todo tu historial de gastos e ingresos. No se puede deshacer.",
+                parse_mode='Markdown',
+                reply_markup=get_confirm_reset_keyboard()
             )
 
         else:
@@ -153,7 +177,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
     user_id = query.from_user.id
 
     if query.data == 'delete_msg':
@@ -165,42 +188,44 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("🗑️ *Último movimiento borrado.*", parse_mode='Markdown')
         else:
             await query.message.reply_text("❌ No hay nada para borrar.")
+    
+    # --- LÓGICA DE CONFIRMACIÓN DE RESET ---
+    elif query.data == 'confirm_reset':
+        count = db.delete_all_user_data(user_id)
+        await query.message.edit_text(f"☢️ *Cuenta Reiniciada*\nSe eliminaron {count} registros.", parse_mode='Markdown')
+    # ---------------------------------------
 
     elif query.data == 'show_chart':
-        # Rate Limit
-        current_time = time.time()
-        last_request = user_chart_cooldowns.get(user_id, 0)
-        if current_time - last_request < 5:
-            await query.message.reply_text("⏳ Espera unos segundos...")
-            return
+        # Gráfico de TEXTO integrado aquí mismo (Sin utils.py)
+        data = db.get_categories_summary(user_id)
         
-        user_chart_cooldowns[user_id] = current_time
-        await query.message.edit_text("🎨 Pintando gráfico...")
-        
-        data = db.get_data_for_chart(user_id)
         if not data:
-            await query.message.edit_text("📉 Sin datos para graficar.", reply_markup=get_back_keyboard())
-        else:
-            # CAMBIO AQUÍ: Llamamos a generate_bar_chart en lugar de pie_chart
-            photo = generate_bar_chart(data)
-            await query.message.delete()
-            await context.bot.send_photo(
-                chat_id=query.message.chat_id,
-                photo=photo,
-                caption="📊 *Tus Gastos por Categoría*",
-                parse_mode='Markdown',
-                reply_markup=get_back_keyboard()
-            )
+            await query.message.edit_text("📉 No hay gastos registrados para mostrar.")
+            return
+
+        total_expenses = sum(monto for _, monto in data)
+        msg = "📊 *Distribución de Gastos*\n──────────────────\n"
+        
+        for category, amount in data:
+            percent = (amount / total_expenses) * 100
+            filled_length = int(10 * amount // total_expenses)
+            bar = '▓' * filled_length + '░' * (10 - filled_length)
+            msg += f"🏷️ *{category.capitalize()}* ({percent:.1f}%)\n"
+            msg += f"`{bar}` ${amount:,.0f}\n\n"
+        
+        msg += f"──────────────────\n💰 *Total Gastado: ${total_expenses:,.0f}*"
+        await query.edit_message_text(text=msg, parse_mode='Markdown', reply_markup=get_back_keyboard())
 
 def main():
     if not TOKEN:
         print("❌ ERROR: No hay Token.")
         return
 
-    print("🚀 PocketFlow 6.1 (Gráfico de Barras) Iniciando...")
+    print("🚀 PocketFlow 8.0 (Final - Sin Errores) Iniciando...")
     application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler(["gasto", "addexpense"], add_expense))
     application.add_handler(CommandHandler(["ingreso", "addincome"], add_income))
     

@@ -37,11 +37,9 @@ class Database:
             """, (user_id, t_type, amount, category, description))
             conn.commit()
 
-    # --- NUEVO: Función para borrar el último error ---
     def delete_last_transaction(self, user_id):
         with self.connect() as conn:
             cursor = conn.cursor()
-            # Busca el último movimiento de este usuario
             cursor.execute("SELECT id FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,))
             row = cursor.fetchone()
             if row:
@@ -49,6 +47,15 @@ class Database:
                 conn.commit()
                 return True
             return False
+
+    # --- NUEVO: BORRADO TOTAL ---
+    def delete_all_user_data(self, user_id):
+        """Borra todo el historial de un usuario"""
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM transactions WHERE user_id = ?", (user_id,))
+            conn.commit()
+            return cursor.rowcount
 
     def get_balance(self, user_id):
         with self.connect() as conn:
@@ -72,19 +79,6 @@ class Database:
             result = cursor.fetchone()[0]
             return result if result else 0.0
 
-    def get_data_for_chart(self, user_id, days=30):
-        with self.connect() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-            SELECT category, SUM(amount) 
-            FROM transactions 
-            WHERE user_id = ? AND type='expense' 
-            AND date >= date('now', ?) 
-            GROUP BY category
-            """, (user_id, f'-{days} days'))
-            return cursor.fetchall()
-
-    # --- NUEVO: Desglose por carpetas ---
     def get_categories_summary(self, user_id):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -97,7 +91,6 @@ class Database:
             """, (user_id,))
             return cursor.fetchall()
 
-    # --- NUEVO: Exportar a Excel (CSV) ---
     def export_to_csv(self, user_id):
         with self.connect() as conn:
             cursor = conn.cursor()
